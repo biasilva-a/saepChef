@@ -1,11 +1,9 @@
 import express from 'express'; 
-import { favoritoController } from '../controllers/favoritoController';
+import * as favoritoController from '../controllers/favoritoController.js';
 
 const router = express.Router(); 
 
-router.post('/favorito/registro', favoritoController.favoritoRegistro);
-router.get('/favorito', favoritoController.getAllFavoritos);
-router.get('/favorito/receita', favoritoController.receitabyId); 
-router.delete('/favorito/receita', favoritoController.delete)
+router.post('/favoritos', favoritoController.alternarFavorito);
+router.get('/favoritos/chef/:idChef', favoritoController.buscarEstatisticasChef);
 
 export default router;

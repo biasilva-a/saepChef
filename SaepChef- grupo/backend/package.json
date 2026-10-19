@@ -8,9 +8,10 @@
     "dev": "node --watch src/server/server.js"
   },
   "dependencies": {
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.3",
+    "node": "^26.12.0",
     "pg": "^8.23.1"
   }
 }

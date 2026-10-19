@@ -55,7 +55,6 @@ ALTER TABLE IF EXISTS public.tb_favoritar
     ON DELETE NO ACTION
     NOT VALID;
 
--- Insere os usuários com a senha entre aspas ('123456')
 INSERT INTO public.tb_usuario (
     id,
     nome,
