@@ -87,11 +87,11 @@ INSERT INTO public.tb_receita (
     updated_at
 )
 VALUES
-(1,'Feijao com Banana','Parana',1,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00'),
-(2,'Arroz e macarrao','Para',3,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00'),
-(3,'Leite quente','Santa catarina',4,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00'),
-(4,'Batata com limao','Curutiba',1,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00'),
-(5,'agua com gas','Parana',2,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00'),
-(6,'macarrao com salsicha','Rio Grande do Sul',3,'nada','2026-01-10 09:15:00','2026-01-10 09:15:00');
+(1,'Feijao com Banana','Parana',1,'receita1.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00'),
+(2,'Arroz e macarrao','Para',3,'receita2.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00'),
+(3,'Leite quente','Santa catarina',4,'receita3.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00'),
+(4,'Batata com limao','Curutiba',1,'receita4.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00'),
+(5,'agua com gas','Parana',2,'receita5.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00'),
+(6,'macarrao com salsicha','Rio Grande do Sul',3,'receita6.jpg','2026-01-10 09:15:00','2026-01-10 09:15:00');
 
 SELECT * FROM public.tb_receita;

@@ -3,9 +3,9 @@ import { usuarioRepository } from "../repositories/usuarioRepository.js";
 export const usuarioController = {
     async registro(req, res) {
         try {
-            const { id_usuario, nome, nome_usuario, email, senha, imagem_usuario, tipo } = req.body;
+            const { id, nome, nome_usuario, email, senha, imagem_usuario, tipo } = req.body;
 
-            if (!id_usuario || !nome || !nome_usuario || !email || !senha || !imagem_usuario || !tipo) {
+            if (!id || !nome || !nome_usuario || !email || !senha || !imagem_usuario || !tipo) {
                 return res.status(400).json({ erro: "Todos os campos (incluindo id_usuario) são obrigatórios." });
             }
 
@@ -15,7 +15,7 @@ export const usuarioController = {
             }
 
             const novoUsuario = await usuarioRepository.create({
-                id_usuario,
+                id,
                 nome,
                 nome_usuario,
                 email,
@@ -59,6 +59,20 @@ export const usuarioController = {
             return res.status(200).json(usuarios);
         } catch (error) {
             console.error("Erro ao buscar usuários:", error);
+            return res.status(500).json({ erro: "Erro interno do servidor." });
+        }
+    },
+
+    async getUsuarioById(req, res) {
+        try {
+            const { id } = req.params;
+            const usuario = await usuarioRepository.getusuarioByid(id);
+            if (!usuario) {
+                return res.status(404).json({ erro: "Usuário não encontrado." });
+            }
+            return res.status(200).json(usuario);
+        } catch (error) {
+            console.error("Erro ao buscar usuário:", error);
             return res.status(500).json({ erro: "Erro interno do servidor." });
         }
     }
