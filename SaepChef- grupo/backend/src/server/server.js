@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-
+import cors from "cors";
 import usuarioRoutes from "../routes/usuarioRoutes.js";
 import receitaRoutes from "../routes/receitaRoutes.js";
 import favoritoRoutes from "../routes/favoritoRoutes.js";
@@ -9,6 +9,13 @@ dotenv.config();
 
 const app = express();
 
+app.use(cors(
+{
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type"]
+}
+));
 app.use(express.json());
 
 app.use(receitaRoutes);
