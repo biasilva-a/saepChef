@@ -1,34 +1,43 @@
-import { query } from '../config/db.js';
 
-export const getFavorito = async (idUsuario, idReceita) => {
-  const sql = 'SELECT * FROM public.tb_favoritar WHERE id_usuario = $1 AND id_receita = $2';
-  const { rows } = await query(sql, [idUsuario, idReceita]);
-  return rows[0];
+import { query } from "../config/db.js";
+
+export const buscarFavorito = async (idUsuario, idReceita) => {
+  const result = await query(
+    "SELECT * FROM public.tb_favoritar WHERE id_usuario = $1 AND id_receita = $2",
+    [idUsuario, idReceita]
+  );
+  return result.rows[0];
 };
 
 export const adicionarFavorito = async (idUsuario, idReceita) => {
-  const sql = `
-    INSERT INTO public.tb_favoritar (id_usuario, id_receita, created_at, updated_at)
-    VALUES ($1, $2, NOW(), NOW())
-    RETURNING *
-  `;
-  const { rows } = await query(sql, [idUsuario, idReceita]);
-  return rows[0];
+  const result = await query(
+    `INSERT INTO public.tb_favoritar
+        (id_favorito, id_usuario, id_receita, created_at, updated_at)
+        VALUES (
+            (SELECT COALESCE(MAX(id_favorito), 0) + 1 FROM public.tb_favoritar),
+            $1, $2, NOW()::text, NOW()::text
+        )
+        RETURNING *`,
+    [idUsuario, idReceita]
+  );
+  return result.rows[0];
 };
 
 export const removerFavorito = async (idUsuario, idReceita) => {
-  const sql = 'DELETE FROM public.tb_favoritar WHERE id_usuario = $1 AND id_receita = $2 RETURNING *';
-  const { rows } = await query(sql, [idUsuario, idReceita]);
-  return rows[0];
+  const result = await query(
+    "DELETE FROM public.tb_favoritar WHERE id_usuario = $1 AND id_receita = $2 RETURNING *",
+    [idUsuario, idReceita]
+  );
+  return result.rows[0];
 };
 
 export const contarFavoritosDoChef = async (idChef) => {
-  const sql = `
-    SELECT COUNT(f.id_favorito)::int AS total_favoritos
-    FROM public.tb_favoritar f
-    JOIN public.tb_receita r ON f.id_receita = r.id_receita
-    WHERE r.id_usuario = $1
-  `;
-  const { rows } = await query(sql, [idChef]);
-  return rows[0]?.total_favoritos || 0;
+  const result = await query(
+    `SELECT COUNT(*) AS total
+         FROM public.tb_favoritar f
+         JOIN public.tb_receita r ON r.id_receita = f.id_receita
+         WHERE r.id_usuario = $1`,
+    [idChef]
+  );
+  return Number(result.rows[0].total);
 };
