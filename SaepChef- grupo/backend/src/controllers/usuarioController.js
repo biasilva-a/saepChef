@@ -6,7 +6,7 @@ export const usuarioController = {
             const { id, nome, nome_usuario, email, senha, imagem_usuario, tipo } = req.body;
 
             if (!id || !nome || !nome_usuario || !email || !senha || !imagem_usuario || !tipo) {
-                return res.status(400).json({ erro: "Todos os campos (incluindo id_usuario) são obrigatórios." });
+                return res.status(400).json({ erro: "Todos os campos (incluindo id) são obrigatórios." });
             }
 
             const usuarioExiste = await usuarioRepository.getByEmail(email);

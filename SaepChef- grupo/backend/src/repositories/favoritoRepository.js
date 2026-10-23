@@ -29,15 +29,34 @@ export const removerFavorito = async (idUsuario, idReceita) => {
     [idUsuario, idReceita]
   );
   return result.rows[0];
-};
+}; 
 
 export const contarFavoritosDoChef = async (idChef) => {
-  const result = await query(
-    `SELECT COUNT(*) AS total
+    const result = await query(
+        `SELECT COUNT(f.id_favorito)::int AS total
          FROM public.tb_favoritar f
-         JOIN public.tb_receita r ON r.id_receita = f.id_receita
+         INNER JOIN public.tb_receita r
+             ON r.id_receita = f.id_receita
          WHERE r.id_usuario = $1`,
-    [idChef]
+        [idChef]
+    );
+
+    return result.rows[0].total;
+};
+
+
+export const buscarFavoritosDoUsuario = async (idUsuario) => {
+  const result = await query(
+    "SELECT id_receita FROM public.tb_favoritar WHERE id_usuario = $1",
+    [idUsuario]
+  );
+  return result.rows;
+};
+
+export const contarFavoritosDaReceita = async (idReceita) => {
+  const result = await query(
+    "SELECT COUNT(*) AS total FROM public.tb_favoritar WHERE id_receita = $1",
+    [idReceita]
   );
   return Number(result.rows[0].total);
 };

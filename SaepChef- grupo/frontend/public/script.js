@@ -3,6 +3,8 @@ const API_URL = "http://localhost:3000";
 
 let usuarioLogado = null;
 let receitas = [];
+let favoritosUsuario = [];
+let cadastrandoReceita = false;
 
 const recipesGrid = document.getElementById("recipesGrid");
 const emptyState = document.getElementById("emptyState");
@@ -15,22 +17,23 @@ const recipeDetailModal = document.getElementById("recipeDetailModal");
 const chefDrawer = document.getElementById("chefDrawer");
 const chefDrawerOverlay = document.getElementById("chefDrawerOverlay");
 
-document.addEventListener("DOMContentLoaded", () => {
-    atualizarInterfaceUsuario();
-    carregarReceitas();
-
+document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("recipeImageUrl")?.addEventListener("input", previewImageInput);
-    document.getElementById("recipeForm")?.addEventListener("submit", cadastrarReceita);
+
+    const formulario = document.getElementById("recipeForm");
+    if (formulario) formulario.onsubmit = cadastrarReceita;
+
     document.getElementById("loginForm")?.addEventListener("submit", realizarLogin);
+
+    atualizarInterfaceUsuario();
+    await carregarReceitas();
 });
 
 async function carregarReceitas() {
     try {
         const resposta = await fetch(`${API_URL}/receitas`);
 
-        if (!resposta.ok) {
-            throw new Error("Não foi possível carregar as receitas.");
-        }
+        if (!resposta.ok) throw new Error("Não foi possível carregar as receitas.");
 
         const dados = await resposta.json();
 
@@ -38,19 +41,151 @@ async function carregarReceitas() {
             ? dados
             : dados.receitas || dados.dados || dados.resultado || [];
 
+        await carregarFavoritosUsuario();
+        await carregarContagemFavoritosReceitas();
+
         aplicarBusca();
         atualizarInterfaceUsuario();
+        await atualizarTotalFavoritosChef();
     } catch (erro) {
         console.error("Erro ao carregar receitas:", erro);
-        recipesGrid.innerHTML = "";
-        emptyState.classList.remove("hidden");
-        emptyState.querySelector("h3").textContent = "Não foi possível carregar as receitas";
-        emptyState.querySelector("p").textContent =
-            "Verifique se o backend está funcionando e tente novamente.";
+
+        if (recipesGrid) recipesGrid.innerHTML = "";
+
+        if (emptyState) {
+            emptyState.classList.remove("hidden");
+            emptyState.querySelector("h3").textContent = "Não foi possível carregar as receitas";
+            emptyState.querySelector("p").textContent =
+                "Verifique se o backend está funcionando e tente novamente.";
+        }
+    }
+}
+
+async function carregarFavoritosUsuario() {
+    if (!usuarioLogado?.id) {
+        favoritosUsuario = [];
+        return;
+    }
+
+    try {
+        const resposta = await fetch(`${API_URL}/favoritos/usuario/${usuarioLogado.id}`);
+
+        if (!resposta.ok) throw new Error("Erro ao carregar favoritos.");
+
+        const dados = await resposta.json();
+
+        favoritosUsuario = Array.isArray(dados)
+            ? dados
+            : dados.favoritos || dados.dados || [];
+    } catch (erro) {
+        console.error("Erro ao carregar favoritos:", erro);
+        favoritosUsuario = [];
+    }
+}
+
+async function carregarContagemFavoritosReceitas() {
+    const resultados = await Promise.all(
+        receitas.map(async receita => {
+            try {
+                const resposta = await fetch(
+                    `${API_URL}/favoritos/receita/${receita.id_receita}/total`
+                );
+
+                if (!resposta.ok) return [receita.id_receita, 0];
+
+                const dados = await resposta.json();
+
+                return [
+                    receita.id_receita,
+                    Number(dados.total ?? dados.totalFavoritos ?? dados.quantidade ?? 0)
+                ];
+            } catch (erro) {
+                console.error("Erro ao contar favoritos:", erro);
+                return [receita.id_receita, 0];
+            }
+        })
+    );
+
+    const contagens = new Map(resultados);
+
+    receitas = receitas.map(receita => ({
+        ...receita,
+        total_favoritos: contagens.get(receita.id_receita) || 0
+    }));
+}
+
+async function atualizarTotalFavoritosChef() {
+    const contador = document.getElementById("totalChefFavoritos");
+
+    if (!contador) return;
+
+    if (!usuarioLogado?.id ||
+        String(usuarioLogado.tipo).toLowerCase() !== "chef") {
+        contador.textContent = "0";
+        return;
+    }
+
+    try {
+        const resposta = await fetch(
+            `${ API_URL } /favoritos/chef / ${ usuarioLogado.id } `
+        );
+
+        const dados = await resposta.json();
+
+        if (!resposta.ok) {
+            throw new Error(dados.mensagem || "Erro ao buscar favoritos.");
+        }
+
+        contador.textContent = Number(
+            dados.totalFavoritos ?? dados.total ?? dados.quantidade ?? 0
+        );
+    } catch (erro) {
+        console.error("Erro ao atualizar contador:", erro);
+        contador.textContent = "0";
+    }
+}
+function definirFotoUsuario(elementoId, nome) {
+    const elemento = document.getElementById(elementoId);
+    if (!elemento) return;
+
+    const foto = usuarioLogado?.imagem_usuario;
+
+    if (foto) {
+        let imagem = elemento.tagName === "IMG"
+            ? elemento
+            : elemento.querySelector("img");
+
+        if (!imagem) {
+            imagem = document.createElement("img");
+            imagem.className = "user-profile-photo";
+            imagem.alt = `Foto de ${nome}`;
+            elemento.replaceChildren(imagem);
+        }
+
+        imagem.src = foto;
+        imagem.alt = `Foto de ${nome}`;
+        imagem.onerror = () => {
+            imagem.removeAttribute("src");
+            elemento.textContent = nome.charAt(0).toUpperCase() || "?";
+        };
+    } else {
+        if (elemento.tagName === "IMG") {
+            elemento.alt = `Foto de ${nome}`;
+            elemento.src = "";
+            elemento.style.display = "none";
+            return;
+        }
+
+        elemento.querySelector("img")?.remove();
+        elemento.textContent = usuarioLogado
+            ? nome.charAt(0).toUpperCase()
+            : "?";
     }
 }
 
 function renderizarReceitas(lista = receitas) {
+    if (!recipesGrid || !emptyState) return;
+
     recipesGrid.innerHTML = "";
     emptyState.classList.toggle("hidden", lista.length > 0);
 
@@ -65,10 +200,12 @@ function renderizarReceitas(lista = receitas) {
             img.className = "recipe-image";
             img.src = receita.url_imagem;
             img.alt = receita.titulo_receita || "Receita";
+
             img.onerror = () => {
                 foto.className = "recipe-image-placeholder";
                 foto.innerHTML = '<i class="fa-solid fa-bowl-food"></i>';
             };
+
             foto.appendChild(img);
         } else {
             foto.className = "recipe-image-placeholder";
@@ -88,12 +225,20 @@ function renderizarReceitas(lista = receitas) {
         const descricao = document.createElement("p");
         descricao.textContent = receita.origem_receita || "Sem descrição.";
 
+        const contador = document.createElement("p");
+        contador.className = "recipe-favorite-count";
+        contador.innerHTML = '<i class="fa-solid fa-heart"></i> ';
+        contador.append(
+            document.createTextNode(`${Number(receita.total_favoritos) || 0} favorito(s)`)
+        );
+
         const rodape = document.createElement("div");
         rodape.className = "recipe-card-footer";
 
         const autor = document.createElement("span");
         autor.className = "chef-name";
-        autor.textContent = receita.nome || receita.nome_usuario || "Chef da comunidade";
+        autor.textContent =
+            receita.nome || receita.nome_usuario || "Chef da comunidade";
 
         const botoes = document.createElement("div");
 
@@ -101,27 +246,47 @@ function renderizarReceitas(lista = receitas) {
         ver.type = "button";
         ver.className = "recipe-open-button";
         ver.textContent = "Ver receita";
-        ver.addEventListener("click", () => abrirDetalhesReceita(receita.id_receita));
+        ver.addEventListener("click", () =>
+            abrirDetalhesReceita(receita.id_receita)
+        );
 
         const favorito = document.createElement("button");
         favorito.type = "button";
         favorito.className = "recipe-favorite-button";
-        favorito.innerHTML = '<i class="fa-regular fa-heart"></i> Favoritar';
-        favorito.addEventListener("click", () => favoritarReceita(receita.id_receita));
+
+        const estaFavoritada = favoritosUsuario.some(
+            item => Number(item.id_receita) === Number(receita.id_receita)
+        );
+
+        favorito.innerHTML = `
+            <img src="svg/estrela.svg" alt="" class="favorite-star">
+            <span>${estaFavoritada ? "Favoritado" : "Favoritar"}</span>
+        `;
+
+        if (estaFavoritada) favorito.classList.add("favorited");
+
+        favorito.addEventListener("click", () =>
+            favoritarReceita(receita.id_receita)
+        );
 
         botoes.append(ver, favorito);
         rodape.append(autor, botoes);
-        corpo.append(meta, titulo, descricao, rodape);
+        corpo.append(meta, titulo, descricao, contador, rodape);
         card.append(foto, corpo);
         recipesGrid.appendChild(card);
     });
 }
 
 function abrirDetalhesReceita(id) {
-    const receita = receitas.find(item => String(item.id_receita) === String(id));
+    const receita = receitas.find(
+        item => String(item.id_receita) === String(id)
+    );
+
     if (!receita) return;
 
     const conteudo = document.getElementById("recipeDetailContent");
+    if (!conteudo || !recipeDetailModal) return;
+
     conteudo.innerHTML = "";
 
     if (receita.url_imagem) {
@@ -137,16 +302,21 @@ function abrirDetalhesReceita(id) {
     const descricao = document.createElement("p");
     descricao.textContent = receita.origem_receita || "Sem descrição.";
 
-    conteudo.append(titulo, descricao);
+    const contador = document.createElement("p");
+    contador.textContent = `Favoritos: ${Number(receita.total_favoritos) || 0}`;
+
+    conteudo.append(titulo, descricao, contador);
     recipeDetailModal.classList.remove("hidden");
 }
 
 function fecharRecipeModal(event) {
     if (event && event.target !== recipeDetailModal) return;
-    recipeDetailModal.classList.add("hidden");
+    recipeDetailModal?.classList.add("hidden");
 }
 
 function abrirLoginModal() {
+    if (!loginModal || !loginAlert) return;
+
     loginAlert.classList.add("hidden");
     loginAlert.textContent = "";
     loginModal.classList.remove("hidden");
@@ -154,7 +324,7 @@ function abrirLoginModal() {
 
 function fecharLoginModal(event) {
     if (event && event.target !== loginModal) return;
-    loginModal.classList.add("hidden");
+    loginModal?.classList.add("hidden");
 }
 
 async function realizarLogin(event) {
@@ -184,6 +354,8 @@ async function realizarLogin(event) {
 
         loginModal.classList.add("hidden");
         document.getElementById("loginForm").reset();
+
+        await carregarReceitas();
         atualizarInterfaceUsuario();
     } catch (erro) {
         loginAlert.textContent = erro.message;
@@ -196,23 +368,34 @@ function atualizarInterfaceUsuario() {
         ? usuarioLogado.nome || usuarioLogado.nome_usuario || "Chef"
         : "Visitante";
 
-    document.getElementById("headerUserName").textContent = nome;
-    document.getElementById("drawerChefName").textContent = nome;
-    document.getElementById("headerUserAvatar").textContent =
-        usuarioLogado ? nome.charAt(0).toUpperCase() : "?";
-    document.getElementById("drawerChefAvatar").textContent =
-        usuarioLogado ? nome.charAt(0).toUpperCase() : "?";
-    document.getElementById("drawerChefTag").textContent =
-        usuarioLogado ? usuarioLogado.tipo || "Usuário" : "Acesse sua conta";
+    const headerName = document.getElementById("headerUserName");
+    const drawerName = document.getElementById("drawerChefName");
+    const drawerTag = document.getElementById("drawerChefTag");
+
+    if (headerName) headerName.textContent = nome;
+    if (drawerName) drawerName.textContent = nome;
+
+    definirFotoUsuario("headerUserAvatar", nome);
+    definirFotoUsuario("drawerChefAvatar", nome);
+
+    if (drawerTag) {
+        drawerTag.textContent = usuarioLogado
+            ? usuarioLogado.tipo || "Usuário"
+            : "Acesse sua conta";
+    }
 
     const botaoLogin = document.getElementById("btnAuthHeader");
 
-    if (usuarioLogado) {
-        botaoLogin.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> Sair';
-        botaoLogin.onclick = realizarLogout;
-    } else {
-        botaoLogin.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login';
-        botaoLogin.onclick = abrirLoginModal;
+    if (botaoLogin) {
+        if (usuarioLogado) {
+            botaoLogin.innerHTML =
+                '<i class="fa-solid fa-right-from-bracket"></i> Sair';
+            botaoLogin.onclick = realizarLogout;
+        } else {
+            botaoLogin.innerHTML =
+                '<i class="fa-solid fa-right-to-bracket"></i> Login';
+            botaoLogin.onclick = abrirLoginModal;
+        }
     }
 
     const isChef = usuarioLogado &&
@@ -222,10 +405,15 @@ function atualizarInterfaceUsuario() {
     document.getElementById("btnFiltrarChef")?.classList.toggle("hidden", !isChef);
 
     const minhas = receitasDoUsuario();
-    document.getElementById("totalChefReceitas").textContent = minhas.length;
-    document.getElementById("badgeSuasReceitasCount").textContent = minhas.length;
+
+    const totalReceitas = document.getElementById("totalChefReceitas");
+    const badgeReceitas = document.getElementById("badgeSuasReceitasCount");
+
+    if (totalReceitas) totalReceitas.textContent = minhas.length;
+    if (badgeReceitas) badgeReceitas.textContent = minhas.length;
 
     renderizarListaDoChef();
+    atualizarTotalFavoritosChef();
 }
 
 function abrirMenuChef() {
@@ -235,25 +423,27 @@ function abrirMenuChef() {
     }
 
     atualizarInterfaceUsuario();
-    chefDrawer.classList.add("open");
-    chefDrawerOverlay.classList.remove("hidden");
+    chefDrawer?.classList.add("open");
+    chefDrawerOverlay?.classList.remove("hidden");
 }
 
 function fecharMenuChef() {
-    chefDrawer.classList.remove("open");
-    chefDrawerOverlay.classList.add("hidden");
+    chefDrawer?.classList.remove("open");
+    chefDrawerOverlay?.classList.add("hidden");
 }
 
 function receitasDoUsuario() {
     if (!usuarioLogado) return [];
 
-    return receitas.filter(receita =>
-        String(receita.id_usuario) === String(usuarioLogado.id)
+    return receitas.filter(
+        receita => String(receita.id_usuario) === String(usuarioLogado.id)
     );
 }
 
 function renderizarListaDoChef() {
     const lista = document.getElementById("chefRecipesList");
+    if (!lista) return;
+
     lista.innerHTML = "";
 
     if (!usuarioLogado) {
@@ -278,7 +468,9 @@ function renderizarListaDoChef() {
         const botao = document.createElement("button");
         botao.type = "button";
         botao.textContent = "Excluir";
-        botao.addEventListener("click", () => excluirReceita(receita.id_receita));
+        botao.addEventListener("click", () =>
+            excluirReceita(receita.id_receita)
+        );
 
         item.append(titulo, botao);
         lista.appendChild(item);
@@ -288,10 +480,15 @@ function renderizarListaDoChef() {
 async function cadastrarReceita(event) {
     event.preventDefault();
 
+    if (cadastrandoReceita) return;
+
     if (!usuarioLogado) {
         abrirLoginModal();
         return;
     }
+
+    const formulario = document.getElementById("recipeForm");
+    const botao = formulario.querySelector('[type="submit"]');
 
     const receita = {
         titulo_receita: document.getElementById("recipeTitle").value.trim(),
@@ -305,24 +502,14 @@ async function cadastrarReceita(event) {
         return;
     }
 
+    cadastrandoReceita = true;
+
+    if (botao) {
+        botao.disabled = true;
+        botao.textContent = "Publicando...";
+    }
+
     try {
-        const respostaLista = await fetch(`${API_URL}/receitas`);
-
-        if (!respostaLista.ok) {
-            throw new Error("Não foi possível consultar os IDs das receitas.");
-        }
-
-        const dadosLista = await respostaLista.json();
-        const lista = Array.isArray(dadosLista)
-            ? dadosLista
-            : dadosLista.receitas || dadosLista.dados || dadosLista.resultado || [];
-
-        const ids = lista
-            .map(item => Number(item.id_receita))
-            .filter(id => Number.isInteger(id) && id > 0);
-
-        receita.id_receita = ids.length > 0 ? Math.max(...ids) + 1 : 1;
-
         const resposta = await fetch(`${API_URL}/receitas`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -335,7 +522,7 @@ async function cadastrarReceita(event) {
             throw new Error(dados.erro || dados.mensagem || "Erro ao cadastrar receita.");
         }
 
-        document.getElementById("recipeForm").reset();
+        formulario.reset();
         document.getElementById("imagePreviewContainer")?.classList.add("hidden");
 
         await carregarReceitas();
@@ -343,6 +530,13 @@ async function cadastrarReceita(event) {
     } catch (erro) {
         console.error("Erro ao cadastrar receita:", erro);
         alert(erro.message);
+    } finally {
+        cadastrandoReceita = false;
+
+        if (botao) {
+            botao.disabled = false;
+            botao.textContent = "Publicar receita";
+        }
     }
 }
 
@@ -387,20 +581,26 @@ async function favoritarReceita(idReceita) {
         const dados = await resposta.json().catch(() => ({}));
 
         if (!resposta.ok) {
-            throw new Error(dados.erro || dados.mensagem || "Não foi possível favoritar a receita.");
+            throw new Error(dados.erro || dados.mensagem || "Não foi possível atualizar o favorito.");
         }
 
-        alert(dados.mensagem || (dados.ativado ? "Receita favoritada!" : "Favorito removido."));
+        await carregarReceitas();
+
+        if (!recipeDetailModal.classList.contains("hidden")) {
+            abrirDetalhesReceita(idReceita);
+        }
     } catch (erro) {
-        console.error("Erro ao favoritar receita:", erro);
+        console.error("Erro ao atualizar favorito:", erro);
         alert(erro.message);
     }
 }
 
 function realizarLogout() {
     usuarioLogado = null;
+    favoritosUsuario = [];
     fecharMenuChef();
     atualizarInterfaceUsuario();
+    aplicarBusca();
 }
 
 function tratarBuscaInput() {
@@ -412,6 +612,11 @@ function executarBusca() {
 }
 
 function aplicarBusca() {
+    if (!searchInput || !btnResetFilter || !searchFeedback) {
+        renderizarReceitas();
+        return;
+    }
+
     const busca = searchInput.value.trim().toLowerCase();
 
     btnResetFilter.classList.toggle("hidden", !busca);
@@ -432,9 +637,12 @@ function aplicarBusca() {
 }
 
 function limparBuscaEResetar() {
-    searchInput.value = "";
-    searchFeedback.textContent = "";
-    document.getElementById("muralTitle").textContent = "Receitas em destaque";
+    if (searchInput) searchInput.value = "";
+    if (searchFeedback) searchFeedback.textContent = "";
+
+    const titulo = document.getElementById("muralTitle");
+    if (titulo) titulo.textContent = "Receitas em destaque";
+
     aplicarBusca();
 }
 
@@ -445,14 +653,21 @@ function filtrarMuralPorChefLogado() {
     }
 
     fecharMenuChef();
-    document.getElementById("muralTitle").textContent = "Minhas receitas";
+
+    const titulo = document.getElementById("muralTitle");
+    if (titulo) titulo.textContent = "Minhas receitas";
+
     renderizarReceitas(receitasDoUsuario());
 }
 
 function previewImageInput() {
-    const url = document.getElementById("recipeImageUrl").value.trim();
+    const campo = document.getElementById("recipeImageUrl");
     const container = document.getElementById("imagePreviewContainer");
     const imagem = document.getElementById("imagePreview");
+
+    if (!campo || !container || !imagem) return;
+
+    const url = campo.value.trim();
 
     if (!url) {
         container.classList.add("hidden");

@@ -789,3 +789,85 @@ button {
         padding: 22px;
     }
 }
+
+.recipe-card-footer img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.recipe-card-footer button img {
+    width: 18px;
+    height: 18px;
+}
+
+.recipe-card-footer button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+}
+
+.btn-favorito img {
+    width: 18px;
+    height: 18px;
+    filter: grayscale(1);
+    transition: filter 0.2s;
+}
+
+.btn-favorito.favoritado img {
+    filter: brightness(0) saturate(100%) invert(69%) sepia(87%) saturate(700%) hue-rotate(355deg);
+}
+
+.recipe-favorite-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.recipe-favorite-button .favorite-star {
+    width: 18px;
+    height: 18px;
+    filter: grayscale(1);
+    transition: filter 0.2s;
+}
+
+.recipe-favorite-button.favorited .favorite-star {
+    filter: brightness(0) saturate(100%) invert(69%) sepia(87%) saturate(700%) hue-rotate(355deg);
+}
+
+.user-profile-photo {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 50%;
+    display: block;
+    overflow: hidden;
+}
+
+#headerUserAvatar,
+#drawerChefAvatar {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#headerUserAvatar .user-profile-photo,
+#drawerChefAvatar .user-profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}

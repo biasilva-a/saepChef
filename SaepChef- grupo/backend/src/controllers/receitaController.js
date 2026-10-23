@@ -40,14 +40,15 @@ export const receitaController = {
 
   async criarReceita(req, res) {
     try {
-      const { id_receita, titulo_receita, origem_receita, id_usuario, url_imagem } = req.body;
+      const { titulo_receita, origem_receita, id_usuario, url_imagem } = req.body;
 
-      if (!id_receita || !titulo_receita || !origem_receita || !id_usuario || !url_imagem) {
-        return res.status(400).json({ erro: "Todos os campos (id_receita, titulo_receita, origem_receita, id_usuario, url_imagem) são obrigatórios." });
+      if (!titulo_receita || !origem_receita || !id_usuario || !url_imagem) {
+        return res.status(400).json({
+          erro: "Título, origem, usuário e imagem são obrigatórios."
+        });
       }
 
       const receita = await receitaRepository.create({
-        id_receita,
         titulo_receita,
         origem_receita,
         id_usuario,
@@ -57,7 +58,9 @@ export const receitaController = {
       return res.status(201).json(receita);
     } catch (error) {
       console.error("Erro ao criar receita:", error);
-      return res.status(500).json({ erro: "Erro interno do servidor." });
+      return res.status(500).json({
+        erro: "Erro interno do servidor."
+      });
     }
   },
 
@@ -77,3 +80,4 @@ export const receitaController = {
     }
   }
 };
+
